@@ -117,6 +117,58 @@ LECTURE TEXT:
 """
 
 
+RESPONSE_SCHEMA = types.Schema(
+    type=types.Type.OBJECT,
+    required=["notes", "questions"],
+    properties={
+        "notes": types.Schema(
+            type=types.Type.ARRAY,
+            items=types.Schema(
+                type=types.Type.OBJECT,
+                required=["topic", "content"],
+                properties={
+                    "topic": types.Schema(type=types.Type.STRING),
+                    "content": types.Schema(type=types.Type.STRING),
+                },
+            ),
+        ),
+        "questions": types.Schema(
+            type=types.Type.ARRAY,
+            items=types.Schema(
+                type=types.Type.OBJECT,
+                required=["type", "topic", "prompt"],
+                properties={
+                    "type": types.Schema(
+                        type=types.Type.STRING,
+                        enum=["mcq", "identification", "matching", "enumeration"],
+                    ),
+                    "topic": types.Schema(type=types.Type.STRING),
+                    "prompt": types.Schema(type=types.Type.STRING),
+                    "choices": types.Schema(
+                        type=types.Type.ARRAY,
+                        items=types.Schema(type=types.Type.STRING),
+                    ),
+                    "answer": types.Schema(type=types.Type.STRING),
+                    "explanation": types.Schema(type=types.Type.STRING),
+                    "pairs": types.Schema(
+                        type=types.Type.ARRAY,
+                        items=types.Schema(
+                            type=types.Type.OBJECT,
+                            properties={
+                                "left": types.Schema(type=types.Type.STRING),
+                                "right": types.Schema(type=types.Type.STRING),
+                            },
+                        ),
+                    ),
+                    "answers": types.Schema(
+                        type=types.Type.ARRAY,
+                        items=types.Schema(type=types.Type.STRING),
+                    ),
+                },
+            ),
+        ),
+    },
+)
 def extract_pdf_text(file_storage) -> str:
     file_bytes = file_storage.read()
     doc = fitz.open(stream=file_bytes, filetype="pdf")
@@ -148,7 +200,11 @@ def call_gemini(lecture_text: str) -> dict:
                 # A thorough, longer question bank means a longer response -
                 # raise the output limit so a big bank doesn't get cut off
                 # mid-JSON.
-                config=types.GenerateContentConfig(max_output_tokens=32768),
+                config=types.GenerateContentConfig(
+                    max_output_tokens=32768,
+                    response_mime_type="application/json",
+                    response_schema=RESPONSE_SCHEMA,
+                ),
             )
             break
         except genai_errors.ServerError:
