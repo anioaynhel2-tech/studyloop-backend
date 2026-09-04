@@ -22,7 +22,7 @@ if not GEMINI_API_KEY:
     )
 
 client = genai.Client(api_key=GEMINI_API_KEY)
-MODEL_NAME = "gemini-3.7-flash"  # current fast/cheap model, free-tier friendly
+MODEL_NAME = "gemini-3.5-flash-lite"  # current fast/cheap model, free-tier friendly
 
 app = Flask(__name__)
 
