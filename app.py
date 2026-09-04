@@ -201,7 +201,7 @@ def call_gemini(lecture_text: str) -> dict:
                 # raise the output limit so a big bank doesn't get cut off
                 # mid-JSON.
                 config=types.GenerateContentConfig(
-                    max_output_tokens=32768,
+                    max_output_tokens=65536,
                     response_mime_type="application/json",
                     response_schema=RESPONSE_SCHEMA,
                 ),
