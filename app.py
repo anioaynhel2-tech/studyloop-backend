@@ -3,7 +3,7 @@ import json
 import re
 
 from flask import Flask, request, jsonify
-from pypdf import PdfReader
+import fitz  # PyMuPDF - much lighter on memory than pypdf for text extraction
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
@@ -104,8 +104,12 @@ LECTURE TEXT:
 
 
 def extract_pdf_text(file_storage) -> str:
-    reader = PdfReader(file_storage)
-    pages = [page.extract_text() or "" for page in reader.pages]
+    file_bytes = file_storage.read()
+    doc = fitz.open(stream=file_bytes, filetype="pdf")
+    try:
+        pages = [page.get_text() or "" for page in doc]
+    finally:
+        doc.close()
     return "\n".join(pages).strip()
 
 
