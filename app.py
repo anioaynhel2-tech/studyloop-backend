@@ -1,7 +1,6 @@
 import os
 import json
 import re
-import time
 
 from flask import Flask, request, jsonify
 from pypdf import PdfReader
@@ -19,7 +18,7 @@ if not GEMINI_API_KEY:
     )
 
 client = genai.Client(api_key=GEMINI_API_KEY)
-MODEL_NAME = "gemini-3.5-flash-lite"  # gemini-2.5-flash-lite was retired for new users - Google's own error message pointed us here, and it has fresh unused daily quota
+MODEL_NAME = "gemini-3.7-flash"  # current fast/cheap model, free-tier friendly
 
 app = Flask(__name__)
 
@@ -43,6 +42,11 @@ specific concept it tests, drawn from the lecture itself (e.g. "Krebs cycle",
 test the same concept, so a student's performance can later be grouped by
 topic.
 
+For every "mcq" question, also write a short "explanation" (1-2 sentences)
+that says why the correct answer is right, phrased so it naturally makes
+clear why the other choices are wrong too. Keep it brief and student-facing,
+not a lecture.
+
 Aim for roughly 8 mcq, 6 identification, 2 matching (each with 4-6 pairs), and
 3 enumeration questions, adjusted to fit how much material is actually in the
 text.
@@ -58,7 +62,8 @@ exactly this shape:
       "topic": "string",
       "prompt": "string",
       "choices": ["string", "string", "string", "string"],
-      "answer": "string (must exactly match one of choices)"
+      "answer": "string (must exactly match one of choices)",
+      "explanation": "string (1-2 sentences on why the answer is correct)"
     }},
     {{
       "type": "identification",
@@ -94,48 +99,17 @@ def extract_pdf_text(file_storage) -> str:
     return "\n".join(pages).strip()
 
 
-# How many times to retry a Gemini call that fails because the model is
-# temporarily overloaded (503 UNAVAILABLE), and how long to wait between
-# tries. Google's free tier is more prone to this than paid tiers, so
-# retrying with a short backoff clears up most transient failures without
-# the user having to manually tap Retry themselves.
-GEMINI_MAX_ATTEMPTS = 4
-GEMINI_RETRY_DELAY_SECONDS = [3, 6, 12]  # one entry per retry (not per attempt)
-
-
 def call_gemini(lecture_text: str) -> dict:
     prompt = PROMPT_TEMPLATE.format(lecture_text=lecture_text[:60000])
+    response = client.models.generate_content(model=MODEL_NAME, contents=prompt)
+    raw = (response.text or "").strip()
 
-    last_error: Exception | None = None
-    for attempt in range(GEMINI_MAX_ATTEMPTS):
-        try:
-            response = client.models.generate_content(model=MODEL_NAME, contents=prompt)
-            raw = (response.text or "").strip()
+    # Gemini sometimes wraps JSON in ```json ... ``` even when told not to -
+    # pull out the {...} block rather than trusting the whole reply is clean.
+    match = re.search(r"\{.*\}", raw, re.DOTALL)
+    json_str = match.group(0) if match else raw
 
-            # Gemini sometimes wraps JSON in ```json ... ``` even when told
-            # not to - pull out the {...} block rather than trusting the
-            # whole reply is clean.
-            match = re.search(r"\{.*\}", raw, re.DOTALL)
-            json_str = match.group(0) if match else raw
-
-            return json.loads(json_str)
-        except Exception as e:  # noqa: BLE001 - inspect and decide whether to retry
-            last_error = e
-            is_overloaded = "UNAVAILABLE" in str(e) or "503" in str(e)
-            is_last_attempt = attempt == GEMINI_MAX_ATTEMPTS - 1
-            if not is_overloaded or is_last_attempt:
-                raise
-            delay = GEMINI_RETRY_DELAY_SECONDS[attempt]
-            print(
-                f"[call_gemini] Gemini overloaded (attempt {attempt + 1}/"
-                f"{GEMINI_MAX_ATTEMPTS}), retrying in {delay}s...",
-                flush=True,
-            )
-            time.sleep(delay)
-
-    # Should be unreachable (the loop always returns or raises), but keeps
-    # type checkers happy and guards against future edits to the loop above.
-    raise last_error  # type: ignore[misc]
+    return json.loads(json_str)
 
 
 @app.get("/")
