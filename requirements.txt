@@ -1,5 +1,5 @@
 flask
-pypdf
+pymupdf
 google-genai
 python-dotenv
 gunicorn
