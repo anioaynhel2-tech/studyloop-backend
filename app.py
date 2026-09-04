@@ -5,6 +5,7 @@ import re
 from flask import Flask, request, jsonify
 from pypdf import PdfReader
 from google import genai
+from google.genai import types
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -29,12 +30,25 @@ Below is the raw text extracted from one lecture. Read it carefully, then produc
 
 1. A concise reviewer (notes) covering the key concepts, written in clear plain
    text with short paragraphs and headings where useful.
-2. A bank of quiz questions covering the material, made up of ALL FOUR of these
-   types:
+2. A THOROUGH bank of quiz questions covering the material, made up of ALL
+   FOUR of these types:
    - "mcq": multiple choice, exactly 4 choices, one correct
    - "identification": a short-answer question with one correct answer
    - "matching": a set of 4-6 term/definition pairs to match
    - "enumeration": "list N things" style, with all acceptable correct items
+
+Before writing any questions, mentally list out every distinct concept,
+definition, process, fact, or relationship covered anywhere in the lecture
+text - including details mentioned only once or in passing, since those are
+exactly the kind of thing that shows up on an exam and catches students off
+guard. Then make sure your question bank actually tests EVERY item on that
+list somewhere - don't stop early just because you've hit a "typical" number
+of questions. A short, sparse lecture should get a short bank; a long or
+dense one should get a correspondingly larger bank. There is no upper limit -
+prioritize covering everything over keeping the bank small. As a rough floor
+only (not a target to stop at): at least 8 mcq, 6 identification, 2 matching
+sets (4-6 pairs each), and 3 enumeration questions for even a short lecture,
+scaling up well beyond that for anything longer or denser.
 
 For EVERY question, assign a short "topic" label (2-5 words) naming the
 specific concept it tests, drawn from the lecture itself (e.g. "Krebs cycle",
@@ -46,10 +60,6 @@ For every "mcq" question, also write a short "explanation" (1-2 sentences)
 that says why the correct answer is right, phrased so it naturally makes
 clear why the other choices are wrong too. Keep it brief and student-facing,
 not a lecture.
-
-Aim for roughly 8 mcq, 6 identification, 2 matching (each with 4-6 pairs), and
-3 enumeration questions, adjusted to fit how much material is actually in the
-text.
 
 Respond with ONLY valid JSON, no markdown fences, no commentary, matching
 exactly this shape:
@@ -100,8 +110,17 @@ def extract_pdf_text(file_storage) -> str:
 
 
 def call_gemini(lecture_text: str) -> dict:
-    prompt = PROMPT_TEMPLATE.format(lecture_text=lecture_text[:60000])
-    response = client.models.generate_content(model=MODEL_NAME, contents=prompt)
+    # 400,000 characters is roughly 100,000 tokens - comfortably within
+    # Gemini's context window even for a long, dense lecture, and a big jump
+    # up from the old 60,000-character cap that could cut off longer PDFs.
+    prompt = PROMPT_TEMPLATE.format(lecture_text=lecture_text[:400000])
+    response = client.models.generate_content(
+        model=MODEL_NAME,
+        contents=prompt,
+        # A thorough, longer question bank means a longer response - raise
+        # the output limit so a big bank doesn't get cut off mid-JSON.
+        config=types.GenerateContentConfig(max_output_tokens=32768),
+    )
     raw = (response.text or "").strip()
 
     # Gemini sometimes wraps JSON in ```json ... ``` even when told not to -
