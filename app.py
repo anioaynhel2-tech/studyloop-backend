@@ -1,6 +1,7 @@
 import os
 import json
 import re
+import traceback
 
 from flask import Flask, request, jsonify
 import fitz  # PyMuPDF - much lighter on memory than pypdf for text extraction
@@ -158,8 +159,10 @@ def generate():
     try:
         result = call_gemini(lecture_text)
     except json.JSONDecodeError:
+        traceback.print_exc()  # print the real error to Render's logs
         return jsonify({"error": "The AI response wasn't valid JSON. Try again."}), 502
     except Exception as e:  # noqa: BLE001 - surface any generation failure to the client
+        traceback.print_exc()  # print the real error to Render's logs
         return jsonify({"error": f"Generation failed: {e}"}), 502
 
     return jsonify(result)
