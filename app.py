@@ -35,8 +35,8 @@ Below is the raw text extracted from one lecture. Read it carefully, then produc
    the lecture, not one long block of text. Each section needs a "topic"
    label (reuse the EXACT SAME short topic label you assign to the quiz
    questions below wherever a section and a question cover the same
-   concept, so the reviewer and the quiz line up) and "content" with a few
-   clear paragraphs covering that concept in plain text. Put the sections
+   concept, so the reviewer and the quiz line up) and "content" written as tight, concrete study notes rather than a narrative overview - state the actual facts, definitions, numbers, formulas, names, dates, steps, or examples a student needs directly, without filler phrases like "this section covers..." or "an important point is.... 
+   Keep each section as short as possible while still including every concrete detail from the lecture on that topic - concise, not padded, but nothing important left out. Put the sections
    in a sensible teaching order - the order the concepts are introduced in
    the lecture, not alphabetical.
 2. A THOROUGH bank of quiz questions covering the material, made up of ALL
