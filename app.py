@@ -173,7 +173,7 @@ def extract_pdf_text(file_storage) -> str:
     file_bytes = file_storage.read()
     doc = fitz.open(stream=file_bytes, filetype="pdf")
     try:
-        pages = [page.get_text() or "" for page in doc]
+        pages = [page.get_text("text", sort=True) or "" for page in doc]
     finally:
         doc.close()
     return "\n".join(pages).strip()
